@@ -6,6 +6,7 @@ use Docker\API\Model\Container;
 use Docker\Manager\ContainerManager;
 use DockerHostManager\Docker\Docker;
 use DockerHostManager\Docker\Event;
+use function GuzzleHttp\Psr7\copy_to_string;
 
 class Synchronizer
 {
@@ -47,12 +48,11 @@ class Synchronizer
     private function init()
     {
         foreach ($this->docker->getContainerManager()->findAll() as $containerConfig) {
-            $response = $this->docker->getContainerManager()->find($containerConfig->getId(), [], ContainerManager::FETCH_RESPONSE);
-            $container = json_decode(\GuzzleHttp\Psr7\copy_to_string($response->getBody()), true);
+            $response =
+                $this->docker->getContainerManager()->find($containerConfig->getId(), [], ContainerManager::FETCH_RESPONSE);
+            $container = json_decode(copy_to_string($response->getBody()), true);
 
-            if ($this->isExposed($container)) {
-                $this->activeContainers[$container['Id']] = $container;
-            }
+            $this->activeContainers[$container['Id']] = $container;
         }
 
         $this->write();
@@ -66,8 +66,9 @@ class Synchronizer
             }
 
             try  {
-                $response = $this->docker->getContainerManager()->find($event->getId(), [], ContainerManager::FETCH_RESPONSE);
-                $container = json_decode(\GuzzleHttp\Psr7\copy_to_string($response->getBody()), true);
+                $response =
+                    $this->docker->getContainerManager()->find($event->getId(), [], ContainerManager::FETCH_RESPONSE);
+                $container = json_decode(copy_to_string($response->getBody()), true);
             } catch (\Exception $e) {
                 return;
             }
@@ -76,11 +77,7 @@ class Synchronizer
                 return;
             }
 
-            if ($this->isExposed($container)) {
-                $this->activeContainers[$container['Id']] = $container;
-            } else {
-                unset($this->activeContainers[$container['Id']]);
-            }
+            $this->activeContainers[$container['Id']] = $container;
 
             $this->write();
         });
@@ -125,7 +122,7 @@ class Synchronizer
 
         // Networks
         if (isset($container['NetworkSettings']['Networks']) && is_array($container['NetworkSettings']['Networks'])) {
-            foreach ($container['NetworkSettings']['Networks'] as $networkName => $conf) {
+            foreach ($container['NetworkSettings']['Networks'] as $conf) {
                 $ip = $conf['IPAddress'];
 
                 $aliases = isset($conf['Aliases']) && is_array($conf['Aliases']) ? $conf['Aliases'] : [];
@@ -133,7 +130,7 @@ class Synchronizer
 
                 $hosts = [];
                 foreach (array_unique($aliases) as $alias) {
-                    $hosts[] = $alias.'.'.$networkName;
+                    $hosts[] = $alias;
                 }
 
                 $lines[$ip] = sprintf('%s%s', isset($lines[$ip]) ? $lines[$ip].' ' : '', implode(' ', $hosts));
