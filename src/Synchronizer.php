@@ -114,7 +114,7 @@ class Synchronizer
         $lines = [];
 
         // Global
-        if (!empty($container['NetworkSettings']['IPAddress']) && ($ip = $container['NetworkSettings']['IPAddress'])) {
+        if (!empty($container['NetworkSettings']['IPAddress']) && !empty($ip = $container['NetworkSettings']['IPAddress'])) {
 
             $lines[$ip] = implode(' ', $this->getContainerHosts($container));
         }
@@ -136,6 +136,7 @@ class Synchronizer
                 }
 
                 $lines[$ip] = sprintf('%s%s', isset($lines[$ip]) ? $lines[$ip] . ' ' : '', implode(' ', $hosts));
+                var_dump($lines[$ip]);
             }
         }
 
